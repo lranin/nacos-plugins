@@ -13,6 +13,8 @@ repositories {
 dependencies {
     // 添加Nacos客户端依赖
     implementation("com.alibaba.nacos:nacos-client:2.0.3")
+    // https://mvnrepository.com/artifact/org.projectlombok/lombok
+    compileOnly("org.projectlombok:lombok:1.18.36")
 }
 // Configure Gradle IntelliJ Plugin
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html

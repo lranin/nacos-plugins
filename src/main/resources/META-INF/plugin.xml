@@ -29,5 +29,15 @@
         <action id="Test.ShowPopup" class="com.yifeng.action.ShowPopupAction" text="显示测试弹窗" description="点击弹出提示框">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
+        <action id="ShowConfig" class="com.yifeng.action.ShowConfig" text="展示配置" description="展示nacos配置">
+            <add-to-group group-id="ToolsMenu" anchor="first"/>
+        </action>
     </actions>
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable instance="com.yifeng.ui.NacosSettingsConfigurable" displayName="Nacos 配置"/>
+        <toolWindow id="Nacos Config"
+
+                    factoryClass="com.yifeng.ui.NacosToolWindowFactory"
+                    anchor="right"/>
+    </extensions>
 </idea-plugin>

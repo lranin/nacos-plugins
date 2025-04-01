@@ -8,11 +8,32 @@ public class NacosConfig {
     private String serverAddr;
     private String namespace;
     private String env;
+    private String username;
+    private String dataId;
+    private String group;
 
-    public NacosConfig(String serverAddr, String namespace, String env) {
+    public NacosConfig() {
+    }
+
+    public NacosConfig(String serverAddr, String namespace) {
         this.serverAddr = serverAddr;
         this.namespace = namespace;
-        this.env = env;
+    }
+
+    public String getDataId() {
+        return dataId;
+    }
+
+    public void setDataId(String dataId) {
+        this.dataId = dataId;
+    }
+
+    public String getGroup() {
+        return group;
+    }
+
+    public void setGroup(String group) {
+        this.group = group;
     }
 
     public String getServerAddr() {
@@ -38,4 +59,13 @@ public class NacosConfig {
     public void setEnv(String env) {
         this.env = env;
     }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
 }
