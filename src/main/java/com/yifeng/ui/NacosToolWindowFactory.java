@@ -55,24 +55,37 @@ public class NacosToolWindowFactory implements ToolWindowFactory, DumbAware {
 
         // 添加拉取配置按钮的点击事件
         fetchConfigButton.addActionListener(e -> {
-            String selectedEnvironment = (String) environmentComboBox.getSelectedItem();
-            String config = nacosClient.loadConfig(selectedEnvironment);
-
-            // 以文件的形式展示
-            NacosConfigFileUtil.showConfigInEditor(project, selectedEnvironment + "-config.yaml", config);
+            fetchConfig(environmentComboBox, panel);
         });
 
         // 添加对比按钮的点击事件
         compareButton.addActionListener(e -> {
-            String selectedEnvironment = (String) environmentComboBox.getSelectedItem();
-            String targetEnvironment = (String) targetEnvironmentComboBox.getSelectedItem(); // 获取目标环境
-            // 调用加载远程Nacos配置的方法
-            String config1 = nacosClient.loadConfig(selectedEnvironment);
-            String config2 = nacosClient.loadConfig(targetEnvironment); // 使用目标环境
-            // 对比配置并显示结果
-//                showCompareResult(config1, config2);
-            StringDiffUtil.compareStrings(project, config1, selectedEnvironment, config2, targetEnvironment);
+            compareConfig(project, environmentComboBox, targetEnvironmentComboBox, panel);
         });
+    }
+
+    private void compareConfig(@NotNull Project project, JComboBox<String> environmentComboBox, JComboBox<String> targetEnvironmentComboBox, JBPanel<?> panel) {
+        String selectedEnvironment = (String) environmentComboBox.getSelectedItem();
+        String targetEnvironment = (String) targetEnvironmentComboBox.getSelectedItem(); // 获取目标环境
+        try {
+            String selectedConfig = nacosClient.loadConfig(selectedEnvironment);
+            String targetConfig = nacosClient.loadConfig(targetEnvironment); // 使用目标环境
+            // 对比配置并显示结果
+            StringDiffUtil.compareStrings(project, selectedConfig, selectedEnvironment, targetConfig, targetEnvironment);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(panel, ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void fetchConfig(JComboBox<String> environmentComboBox, JBPanel<?> panel) {
+        String selectedEnvironment = (String) environmentComboBox.getSelectedItem();
+        try {
+            String config = nacosClient.loadConfig(selectedEnvironment);
+            // 弹窗提醒
+            JOptionPane.showMessageDialog(panel, config, selectedEnvironment + "-config.yaml", JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(panel, ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     // 新增方法：格式检查
@@ -82,34 +95,5 @@ public class NacosToolWindowFactory implements ToolWindowFactory, DumbAware {
             return "配置为空";
         }
         return "格式正确";
-    }
-
-    // 修改方法：显示对比结果
-    private void showCompareResult(String config1, String config2) {
-        // 创建一个新的窗口
-        JFrame compareFrame = new JFrame("配置对比结果");
-        compareFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        compareFrame.setSize(600, 400);
-
-        // 创建一个面板用于显示对比结果
-        JBPanel<?> panel = new JBPanel<>();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-
-        // 添加对比结果标签
-        JBLabel resultLabel = new JBLabel("配置对比结果:");
-        panel.add(resultLabel);
-
-        // 添加对比结果文本区域
-        JTextArea resultTextArea = new JTextArea(20, 50);
-        resultTextArea.setText("配置1:\n" + config1 + "\n\n配置2:\n" + config2 + "\n\n格式检查结果:\n配置1: " + "todo" + "\n配置2: " + "todo");
-        resultTextArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(resultTextArea);
-        panel.add(scrollPane);
-
-        // 将面板添加到窗口
-        compareFrame.add(panel);
-
-        // 显示窗口
-        compareFrame.setVisible(true);
     }
 }
