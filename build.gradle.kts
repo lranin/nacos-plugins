@@ -13,6 +13,7 @@ repositories {
 dependencies {
     // 添加Nacos客户端依赖
     implementation("com.alibaba.nacos:nacos-client:2.0.3")
+    implementation("org.yaml:snakeyaml:2.0")
 }
 // Configure Gradle IntelliJ Plugin
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
@@ -35,7 +36,7 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("213")
-        untilBuild.set("233.*")
+        untilBuild.set("")
     }
 
     signPlugin {

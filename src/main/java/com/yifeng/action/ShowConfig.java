@@ -2,8 +2,8 @@ package com.yifeng.action;
 
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.yifeng.model.NacosConfig;
-import com.yifeng.service.NacosConfigState;
+import com.yifeng.model.NacosServerConfig;
+import com.yifeng.service.NacosGlobalConfigState;
 
 /**
  * @author : liuruiming
@@ -14,9 +14,9 @@ public class ShowConfig extends AnAction {
 
     @Override
     public void actionPerformed(AnActionEvent e) {
-        NacosConfigState state = NacosConfigState.getInstance();
+        NacosGlobalConfigState state = NacosGlobalConfigState.getInstance();
         for (String server : state.configMap.keySet()) {
-            NacosConfig config = state.configMap.get(server);
+            NacosServerConfig config = state.configMap.get(server);
             System.out.println("服务器: " + config.getServerAddr() + ", Namespace: " + config.getNamespace());
         }
     }

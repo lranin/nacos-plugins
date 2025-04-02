@@ -1,39 +1,18 @@
 package com.yifeng.model;
 
-public class NacosConfig {
-    public static final String DEV = "dev";
-    public static final String TEST = "test";
-    public static final String PROD = "prod";
-
+public class NacosServerConfig {
     private String serverAddr;
     private String namespace;
     private String env;
     private String username;
-    private String dataId;
-    private String group;
 
-    public NacosConfig() {
+    public NacosServerConfig() {
     }
 
-    public NacosConfig(String serverAddr, String namespace) {
+    public NacosServerConfig(String serverAddr, String namespace, String username) {
         this.serverAddr = serverAddr;
         this.namespace = namespace;
-    }
-
-    public String getDataId() {
-        return dataId;
-    }
-
-    public void setDataId(String dataId) {
-        this.dataId = dataId;
-    }
-
-    public String getGroup() {
-        return group;
-    }
-
-    public void setGroup(String group) {
-        this.group = group;
+        this.username = username;
     }
 
     public String getServerAddr() {

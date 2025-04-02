@@ -3,8 +3,9 @@ package com.yifeng.client;
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.exception.NacosException;
-import com.yifeng.model.NacosConfig;
-import com.yifeng.service.NacosConfigState;
+import com.yifeng.model.EnvironmentEnums;
+import com.yifeng.model.NacosServerConfig;
+import com.yifeng.service.NacosGlobalConfigState;
 import com.yifeng.utils.SecurePasswordStorage;
 
 import java.util.HashMap;
@@ -19,22 +20,20 @@ import java.util.Properties;
 public class NacosClient {
     Map<String, ConfigService> configServiceMap = new HashMap<>();
 
-
-
-    // 新增方法：拉取Nacos配置
-    public String loadConfig(String environment) {
-        NacosConfigState state = NacosConfigState.getInstance();
-        NacosConfig nacosConfig = state.getConfigMap().get(environment);
-        if (nacosConfig == null) {
-            throw new RuntimeException("未找到环境配置: " + environment);
+    public String loadConfig(String nacosTag, String environment, String dataId, String group) {
+        String mapKey = nacosTag + environment;
+        NacosGlobalConfigState state = NacosGlobalConfigState.getInstance();
+        NacosServerConfig nacosServerConfig = state.getConfigMap().get(mapKey);
+        if (nacosServerConfig == null) {
+            throw new RuntimeException("未找到环境配置: " + mapKey);
         }
-        ConfigService configService = configServiceMap.get(environment);
+        ConfigService configService = configServiceMap.get(mapKey);
         if (configService == null) {
             Properties properties = new Properties();
-            properties.put("serverAddr", nacosConfig.getServerAddr());
-            properties.put("username", nacosConfig.getUsername());
-            properties.put("password", SecurePasswordStorage.loadPassword(nacosConfig.getEnv()));
-            properties.put("namespace", nacosConfig.getNamespace());
+            properties.put("serverAddr", nacosServerConfig.getServerAddr());
+            properties.put("username", nacosServerConfig.getUsername());
+            properties.put("password", SecurePasswordStorage.loadPassword(nacosServerConfig.getEnv()));
+            properties.put("namespace", nacosServerConfig.getNamespace());
             try {
                 configService = NacosFactory.createConfigService(properties);
                 configServiceMap.put(environment, configService);
@@ -43,9 +42,10 @@ public class NacosClient {
             }
         }
         try {
-            return configService.getConfig(nacosConfig.getDataId(), nacosConfig.getGroup(), 5000);
+            return configService.getConfig(dataId, group, 5000);
         } catch (NacosException e) {
             throw new RuntimeException(e);
         }
     }
+
 }
