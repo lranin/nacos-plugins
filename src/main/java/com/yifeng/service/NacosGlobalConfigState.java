@@ -22,6 +22,15 @@ public final class NacosGlobalConfigState implements PersistentStateComponent<Na
     }
 
     public Map<String, NacosServerConfig> configMap = new HashMap<>();
+    public String exportPath = "D:\\";
+
+    public String getExportPath() {
+        return exportPath;
+    }
+
+    public void setExportPath(String exportPath) {
+        this.exportPath = exportPath;
+    }
 
     public static NacosGlobalConfigState getInstance() {
         return com.intellij.openapi.components.ServiceManager.getService(NacosGlobalConfigState.class);

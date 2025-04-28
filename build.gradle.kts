@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
-    id("org.jetbrains.intellij") version "1.17.2"
+    id("org.jetbrains.intellij") version "1.17.3"
 }
 
 group = "com.yifeng.base"
@@ -36,7 +36,7 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("213")
-        untilBuild.set("")
+        untilBuild.set("999.*")
     }
 
     signPlugin {

@@ -3,7 +3,7 @@ package com.yifeng.client;
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.exception.NacosException;
-import com.yifeng.model.EnvironmentEnums;
+import com.intellij.openapi.ui.Messages;
 import com.yifeng.model.NacosServerConfig;
 import com.yifeng.service.NacosGlobalConfigState;
 import com.yifeng.utils.SecurePasswordStorage;
@@ -25,6 +25,7 @@ public class NacosClient {
         NacosGlobalConfigState state = NacosGlobalConfigState.getInstance();
         NacosServerConfig nacosServerConfig = state.getConfigMap().get(mapKey);
         if (nacosServerConfig == null) {
+            Messages.showErrorDialog(String.format("未找到环境配置,tag: %s, environment: %s", mapKey, environment), "Nacos配置服务连接失败");
             throw new RuntimeException("未找到环境配置: " + mapKey);
         }
         ConfigService configService = configServiceMap.get(mapKey);
@@ -38,11 +39,17 @@ public class NacosClient {
                 configService = NacosFactory.createConfigService(properties);
                 configServiceMap.put(environment, configService);
             } catch (NacosException e) {
-                throw new RuntimeException("创建Nacos配置服务失败: " + e.getMessage());
+                Messages.showErrorDialog(String.format("连接Nacos配置服务器失败: %s", e.getMessage()), "Nacos配置服务连接失败");
+                throw new RuntimeException(e);
             }
         }
         try {
-            return configService.getConfig(dataId, group, 5000);
+            String config = configService.getConfig(dataId, group, 5000);
+            if (config == null || config.isEmpty()) {
+                Messages.showErrorDialog(String.format("未找到或无法拉取配置: %s@%s", dataId, group), "Nacos配置为空");
+                throw new RuntimeException(String.format("未找到或无法拉取配置: %s@%s", dataId, group));
+            }
+            return config;
         } catch (NacosException e) {
             throw new RuntimeException(e);
         }

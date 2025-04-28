@@ -1,8 +1,16 @@
 package com.yifeng.ui;
 
+import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.components.JBLabel;
@@ -11,9 +19,11 @@ import com.intellij.util.ui.JBUI;
 import com.yifeng.client.NacosClient;
 import com.yifeng.model.EnvironmentEnums;
 import com.yifeng.model.NacosProjectConfig;
-import com.yifeng.model.NacosServerConfig;
+import com.yifeng.model.ServerName;
+import com.yifeng.service.NacosGlobalConfigState;
 import com.yifeng.service.NacosProjectConfigState;
 import com.yifeng.utils.NacosConfigFileUtil;
+import com.yifeng.utils.PropertiesHighlighter;
 import com.yifeng.utils.StringDiffUtil;
 import com.yifeng.utils.YamlUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -21,8 +31,12 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionListener;
+import java.awt.datatransfer.StringSelection;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
@@ -31,88 +45,67 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
     private JComboBox<String> serverConfigDropdown;
     private JTextField dataIdField;
     private JTextField groupField;
-    JComboBox<String> environmentComboBox;
-    JComboBox<String> targetEnvironmentComboBox;
-    JButton fetchButton;
-    JButton compareButton;
-    JButton yamlCheckButton;
+    private JComboBox<String> environmentComboBox;
+    private JComboBox<String> targetEnvironmentComboBox;
+    private JButton fetchButton;
+    private JButton compareButton;
+    private JButton yamlCheckButton;
+    private JButton propertiesCheckButton;
+    private JButton exportButton;
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        // 创建并设置面板
-        mainPanel = createMainPanel();
-
-        // 添加组件到Tool Window
+        mainPanel = createMainPanel(project);
         toolWindow.getComponent().add(mainPanel);
-
-        // 加载配置
         loadSettings();
-
-        // 获取环境配置
-        String selectedEnvironment = getSelectedEnvironment();
-        String targetEnvironment = getTargetEnvironment();
-
-        // 绑定按钮事件
-        bindButtonActions(project, selectedEnvironment, targetEnvironment, mainPanel);
     }
 
-    private @NotNull JBPanel<?> createMainPanel() {
-        JBPanel<?> mainPanel = new JBPanel<>();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(JBUI.Borders.empty(10));
+    private @NotNull JBPanel<?> createMainPanel(Project project) {
+        JBPanel<?> panel = new JBPanel<>();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(JBUI.Borders.empty(15));
 
-        // 添加标题标签
-        mainPanel.add(new JBLabel("Nacos 配置"));
+        panel.add(new JBLabel("Nacos 配置"));
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(createServerConfigPanel());
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(createFormPanel());
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(createEnvironmentPanel());
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(createButtonPanel(project));
 
-        // 添加顶部服务器配置下拉框
-        mainPanel.add(createTopPanel());
-
-        // 添加配置表单
-        mainPanel.add(createFormPanel());
-
-        // 添加环境选择下拉框
-        mainPanel.add(createEnvironmentComboBox());
-
-        // 添加目标环境选择下拉框
-        mainPanel.add(createTargetEnvironmentComboBox());
-
-        // 按钮面板（水平布局）
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        buttonPanel.add(fetchButton = new JButton("拉取配置"));
-        buttonPanel.add(compareButton = new JButton("对比配置"));
-        buttonPanel.add(yamlCheckButton = new JButton("YAML格式校验"));
-
-        // 设置按钮大小
-        Dimension buttonSize = new Dimension(120, 30);
-        fetchButton.setPreferredSize(buttonSize);
-        compareButton.setPreferredSize(buttonSize);
-        yamlCheckButton.setPreferredSize(buttonSize);
-
-        mainPanel.add(buttonPanel);
-
-        return mainPanel;
+        return panel;
     }
 
-    private JPanel createTopPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
-        serverConfigDropdown = new ComboBox<>(new String[]{"配置1", "配置2", "配置3"});
+    private JPanel createServerConfigPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        panel.setBorder(BorderFactory.createTitledBorder("服务器选择"));
+        serverConfigDropdown = new ComboBox<>(Arrays.stream(ServerName.values()).map(ServerName::getServerName).toArray(String[]::new));
+        serverConfigDropdown.setPreferredSize(new Dimension(300, 30));
         panel.add(serverConfigDropdown);
         return panel;
     }
 
     private JPanel createFormPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("配置参数"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = JBUI.insets(5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.gridx = 0;
 
-        dataIdField = new JTextField(20);
+        dataIdField = new JTextField();
+        dataIdField.setPreferredSize(new Dimension(300, 30));
+        groupField = new JTextField();
+        groupField.setPreferredSize(new Dimension(300, 30));
+
         gbc.gridy++;
-        groupField = new JTextField(20);
-
         panel.add(createLabeledField("dataId:", dataIdField), gbc);
         gbc.gridy++;
         panel.add(createLabeledField("group:", groupField), gbc);
+
         return panel;
     }
 
@@ -123,49 +116,100 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
         return panel;
     }
 
-    private JComboBox<String> createEnvironmentComboBox() {
-        String[] environments = Arrays.stream(EnvironmentEnums.values()).map(EnvironmentEnums::getEnv).toArray(String[]::new);
-        environmentComboBox = new ComboBox<>(environments);
-        environmentComboBox.setPreferredSize(new Dimension(100, 30));
-        environmentComboBox.setMaximumSize(new Dimension(100, 30));
-        return environmentComboBox;
+    private JPanel createEnvironmentPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        panel.setBorder(BorderFactory.createTitledBorder("环境选择"));
+
+        environmentComboBox = new ComboBox<>(Arrays.stream(EnvironmentEnums.values()).map(EnvironmentEnums::getEnv).toArray(String[]::new));
+        targetEnvironmentComboBox = new ComboBox<>(Arrays.stream(EnvironmentEnums.values()).map(EnvironmentEnums::getEnv).toArray(String[]::new));
+        environmentComboBox.setPreferredSize(new Dimension(140, 30));
+        targetEnvironmentComboBox.setPreferredSize(new Dimension(140, 30));
+
+        panel.add(new JLabel("源环境:"));
+        panel.add(environmentComboBox);
+        panel.add(new JLabel("目标环境:"));
+        panel.add(targetEnvironmentComboBox);
+
+        return panel;
     }
 
-    private JComboBox<String> createTargetEnvironmentComboBox() {
-        String[] environments = Arrays.stream(EnvironmentEnums.values()).map(EnvironmentEnums::getEnv).toArray(String[]::new);
-        targetEnvironmentComboBox = new ComboBox<>(environments);
-        targetEnvironmentComboBox.setPreferredSize(new Dimension(100, 20));
-        targetEnvironmentComboBox.setMaximumSize(new Dimension(100, 20));
-        return targetEnvironmentComboBox;
+    private JPanel createButtonPanel(Project project) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder("操作"));
+
+        fetchButton = new JButton("拉取配置");
+        compareButton = new JButton("对比配置");
+        yamlCheckButton = new JButton("YAML格式校验");
+        propertiesCheckButton = new JButton("prop格式校验");
+        exportButton = new JButton("导出当前文件");
+
+        Dimension buttonSize = new Dimension(160, 36); // 统一按钮大小
+        fetchButton.setPreferredSize(buttonSize);
+        compareButton.setPreferredSize(buttonSize);
+        yamlCheckButton.setPreferredSize(buttonSize);
+        propertiesCheckButton.setPreferredSize(buttonSize);
+        exportButton.setPreferredSize(buttonSize);
+
+        // 第一行：拉取 + 对比
+        JPanel fetchComparePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
+        fetchComparePanel.add(fetchButton);
+        fetchComparePanel.add(compareButton);
+
+        // 第二行：YAML校验 + prop校验
+        JPanel checkPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
+        checkPanel.add(yamlCheckButton);
+        checkPanel.add(propertiesCheckButton);
+
+        // 第三行：导出
+        JPanel exportPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
+        exportPanel.add(exportButton);
+
+        // 把三行按钮加到panel里
+        panel.add(fetchComparePanel);
+        panel.add(Box.createVerticalStrut(10)); // 每行之间留10px空隙
+        panel.add(checkPanel);
+        panel.add(Box.createVerticalStrut(10));
+        panel.add(exportPanel);
+
+        bindButtonActions(project);
+        return panel;
     }
 
-    private void bindButtonActions(Project project, String selectedEnvironment, String targetEnvironment, JPanel mainPanel) {
-        // 拉取配置按钮的点击事件
+
+
+    private void bindButtonActions(Project project) {
         fetchButton.addActionListener(e -> {
-            try {
-                fetchConfig(project);
-            } catch (RuntimeException ex) {
-                JOptionPane.showMessageDialog(mainPanel, ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
-            }
+            runWithLoading(fetchButton, "拉取中...", () -> fetchConfig(project));
         });
 
-        // 对比按钮的点击事件
         compareButton.addActionListener(e -> {
-            try {
-                compareConfig(project);
-            } catch (RuntimeException ex) {
-                JOptionPane.showMessageDialog(mainPanel, ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
-            }
+            runWithLoading(compareButton, "对比中...", () -> compareConfig(project));
         });
 
-        // YAML格式校验按钮
         yamlCheckButton.addActionListener(e -> {
-            String selectedConfig = nacosClient.loadConfig(serverConfigDropdown.getSelectedItem().toString(), getSelectedEnvironment(), dataIdField.getText(), groupField.getText());
-            String validYaml = YamlUtils.isValidYaml(selectedConfig);
-            if (StringUtils.isNotBlank(validYaml)) {
-                JOptionPane.showMessageDialog(mainPanel, validYaml, "YAML格式错误", JOptionPane.ERROR_MESSAGE);
+            checkCurrentFileYaml(project);
+        });
+
+        exportButton.addActionListener(e -> {
+            exportCurrentFile(project);
+        });
+
+        propertiesCheckButton.addActionListener(e -> {
+            Editor editor = FileEditorManager.getInstance(project).getSelectedTextEditor();
+            if (editor == null) {
+                Messages.showErrorDialog("未找到打开的文件", "错误");
+                return;
+            }
+
+            String content = editor.getDocument().getText();
+
+            boolean hasError = PropertiesHighlighter.highlightValidation(editor, content);
+
+            if (hasError) {
+                Messages.showErrorDialog("校验不通过", "提示");
             } else {
-                JOptionPane.showMessageDialog(mainPanel, "YAML格式正确", "YAML格式正确", JOptionPane.INFORMATION_MESSAGE);
+                Messages.showInfoMessage("校验通过", "提示");
             }
         });
     }
@@ -174,16 +218,12 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
         try {
             saveProjectConfig();
             String config = nacosClient.loadConfig(serverConfigDropdown.getSelectedItem().toString(), getSelectedEnvironment(), dataIdField.getText(), groupField.getText());
-            NacosConfigFileUtil.showConfigInEditor(project, getSelectedEnvironment() + "-配置文件", config);
-        } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(mainPanel, ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+            WriteCommandAction.runWriteCommandAction(project, () -> {
+                NacosConfigFileUtil.showConfigInEditor(project, getSelectedEnvironment() + "-配置文件", config);
+            });
+        } catch (Exception ex) {
+            showError(ex.getMessage());
         }
-    }
-
-    private void saveProjectConfig() {
-        NacosProjectConfig projectConfig = getProjectConfig();
-        projectConfig.setDataId(dataIdField.getText());
-        projectConfig.setGroup(groupField.getText());
     }
 
     private void compareConfig(Project project) {
@@ -192,13 +232,71 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
             String selectedConfig = nacosClient.loadConfig(serverConfigDropdown.getSelectedItem().toString(), getSelectedEnvironment(), dataIdField.getText(), groupField.getText());
             String targetConfig = nacosClient.loadConfig(serverConfigDropdown.getSelectedItem().toString(), getTargetEnvironment(), dataIdField.getText(), groupField.getText());
             StringDiffUtil.compareStrings(project, selectedConfig, getSelectedEnvironment(), targetConfig, getTargetEnvironment());
-        } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(mainPanel, ex.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            showError(ex.getMessage());
         }
     }
 
-    private @NotNull NacosProjectConfig getProjectConfig() {
-        return NacosProjectConfigState.getInstance().getState();
+    private void checkCurrentFileYaml(Project project) {
+        Editor editor = FileEditorManager.getInstance(project).getSelectedTextEditor();
+        if (editor == null) {
+            showError("未找到打开的文件");
+            return;
+        }
+        String content = editor.getDocument().getText();
+        String error = YamlUtils.isValidYaml(content);
+        if (StringUtils.isNotBlank(error)) {
+            showError(error);
+        } else {
+            Messages.showInfoMessage("YAML格式正确", "校验通过");
+        }
+    }
+
+    private void exportCurrentFile(Project project) {
+        Editor editor = FileEditorManager.getInstance(project).getSelectedTextEditor();
+        if (editor == null) {
+            showError("未找到打开的文件");
+            return;
+        }
+
+        VirtualFile file = FileDocumentManager.getInstance().getFile(editor.getDocument());
+        if (file == null) {
+            showError("未找到文件");
+            return;
+        }
+
+        // 获取全局配置中的导出路径
+        String exportPath = NacosGlobalConfigState.getInstance().getExportPath();
+        if (exportPath == null || exportPath.isEmpty()) {
+            // 如果没有设置导出路径，则让用户选择一个路径
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setSelectedFile(new File(file.getName()));
+            int option = fileChooser.showSaveDialog(mainPanel);
+            if (option == JFileChooser.APPROVE_OPTION) {
+                File saveFile = fileChooser.getSelectedFile();
+                try (FileOutputStream fos = new FileOutputStream(saveFile)) {
+                    fos.write(editor.getDocument().getText().getBytes(StandardCharsets.UTF_8));
+                    Messages.showInfoMessage("保存成功: " + saveFile.getAbsolutePath(), "导出成功");
+                } catch (Exception ex) {
+                    showError(ex.getMessage());
+                }
+            }
+        } else {
+            // 使用全局配置中的导出路径
+            File saveFile = new File(exportPath, file.getName());
+            try (FileOutputStream fos = new FileOutputStream(saveFile)) {
+                fos.write(editor.getDocument().getText().getBytes(StandardCharsets.UTF_8));
+                Messages.showInfoMessage("保存成功: " + saveFile.getAbsolutePath(), "导出成功");
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        }
+    }
+
+    private void saveProjectConfig() {
+        NacosProjectConfig projectConfig = NacosProjectConfigState.getInstance().getState();
+        projectConfig.setDataId(dataIdField.getText());
+        projectConfig.setGroup(groupField.getText());
     }
 
     private String getSelectedEnvironment() {
@@ -210,8 +308,27 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
     }
 
     private void loadSettings() {
-        NacosProjectConfig projectConfig = getProjectConfig();
+        NacosProjectConfig projectConfig = NacosProjectConfigState.getInstance().getState();
         dataIdField.setText(projectConfig.getDataId() != null ? projectConfig.getDataId() : "");
         groupField.setText(projectConfig.getGroup() != null ? projectConfig.getGroup() : "");
+    }
+
+    private void runWithLoading(JButton button, String loadingText, Runnable task) {
+        button.setEnabled(false);
+        String originalText = button.getText();
+        button.setText(loadingText);
+        SwingUtilities.invokeLater(() -> {
+            try {
+                task.run();
+            } finally {
+                button.setEnabled(true);
+                button.setText(originalText);
+            }
+        });
+    }
+
+    private void showError(String message) {
+        CopyPasteManager.getInstance().setContents(new StringSelection(message));
+        Messages.showErrorDialog(mainPanel, message + "\n(已复制错误信息)", "错误");
     }
 }
