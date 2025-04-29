@@ -71,18 +71,21 @@ public class NacosGlobalConfigurable implements Configurable {
     private JPanel createFormPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = JBUI.insets(10);  // Set larger padding for better spacing
+        gbc.insets = JBUI.insets(15); // Increased padding for better spacing
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Create form fields
-        serverField = new JTextField(20);
-        namespaceField = new JTextField(20);
-        usernameField = new JTextField("reader", 20);
-        passwordField = new JPasswordField(20);
-        exportPathField = new JTextField(20);  // 导出路径输入框
-        saveButton = new JButton("Save");
+        // Create form fields with increased width
+        serverField = new JTextField(30);
+        namespaceField = new JTextField(30);
+        usernameField = new JTextField("reader", 30);
+        passwordField = new JPasswordField(30);
+        exportPathField = new JTextField(30);  // Export Path Input Field
 
-        // Label and field arrangement with better alignment
+        // Save button with improved alignment and styling
+        saveButton = new JButton("Save");
+        saveButton.setPreferredSize(new Dimension(100, 30)); // Explicit size for the button
+
+        // Label and field arrangement with improved alignment
         gbc.gridx = 0;
         gbc.gridy = 0;
         panel.add(createLabeledField("Server Address:", serverField), gbc);
@@ -93,9 +96,8 @@ public class NacosGlobalConfigurable implements Configurable {
         gbc.gridy++;
         panel.add(createLabeledField("Password:", passwordField), gbc);
         gbc.gridy++;
-        panel.add(createLabeledField("Export Path:", exportPathField), gbc); // 添加导出路径
+        panel.add(createLabeledField("Export Path:", exportPathField), gbc); // Adding Export Path
         gbc.gridy++;
-        gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.CENTER;
         panel.add(saveButton, gbc);
 
@@ -106,8 +108,10 @@ public class NacosGlobalConfigurable implements Configurable {
     }
 
     private JPanel createLabeledField(String labelText, JComponent field) {
-        JPanel panel = new JPanel(new BorderLayout(10, 0));
-        panel.add(new JLabel(labelText), BorderLayout.WEST);
+        JPanel panel = new JPanel(new BorderLayout(15, 0));
+        JLabel label = new JLabel(labelText);
+        label.setPreferredSize(new Dimension(120, label.getPreferredSize().height)); // Fixed width for labels to align uniformly
+        panel.add(label, BorderLayout.WEST);
         panel.add(field, BorderLayout.CENTER);
         return panel;
     }
@@ -145,9 +149,9 @@ public class NacosGlobalConfigurable implements Configurable {
 
     private String getDefaultNamespaceForEnvironment() {
         switch (currentEnvironment) {
-            case "DEV": return "develop";
-            case "TEST": return "testing";
-            case "PROD": return "product";
+            case "dev": return "develop";
+            case "test": return "testing";
+            case "prod": return "product";
             default: return "public";
         }
     }

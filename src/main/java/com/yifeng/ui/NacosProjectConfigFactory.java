@@ -57,7 +57,7 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         mainPanel = createMainPanel(project);
         toolWindow.getComponent().add(mainPanel);
-        loadSettings();
+        loadSettings(project);
     }
 
     private @NotNull JBPanel<?> createMainPanel(Project project) {
@@ -216,7 +216,7 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
 
     private void fetchConfig(Project project) {
         try {
-            saveProjectConfig();
+            saveProjectConfig(project);
             String config = nacosClient.loadConfig(serverConfigDropdown.getSelectedItem().toString(), getSelectedEnvironment(), dataIdField.getText(), groupField.getText());
             WriteCommandAction.runWriteCommandAction(project, () -> {
                 NacosConfigFileUtil.showConfigInEditor(project, getSelectedEnvironment() + "-配置文件", config);
@@ -228,7 +228,7 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
 
     private void compareConfig(Project project) {
         try {
-            saveProjectConfig();
+            saveProjectConfig(project);
             String selectedConfig = nacosClient.loadConfig(serverConfigDropdown.getSelectedItem().toString(), getSelectedEnvironment(), dataIdField.getText(), groupField.getText());
             String targetConfig = nacosClient.loadConfig(serverConfigDropdown.getSelectedItem().toString(), getTargetEnvironment(), dataIdField.getText(), groupField.getText());
             StringDiffUtil.compareStrings(project, selectedConfig, getSelectedEnvironment(), targetConfig, getTargetEnvironment());
@@ -293,8 +293,8 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
         }
     }
 
-    private void saveProjectConfig() {
-        NacosProjectConfig projectConfig = NacosProjectConfigState.getInstance().getState();
+    private void saveProjectConfig(Project project) {
+        NacosProjectConfig projectConfig = NacosProjectConfigState.getInstance(project).getState();
         projectConfig.setDataId(dataIdField.getText());
         projectConfig.setGroup(groupField.getText());
     }
@@ -307,8 +307,8 @@ public class NacosProjectConfigFactory implements ToolWindowFactory, DumbAware {
         return Objects.requireNonNull(targetEnvironmentComboBox.getSelectedItem()).toString();
     }
 
-    private void loadSettings() {
-        NacosProjectConfig projectConfig = NacosProjectConfigState.getInstance().getState();
+    private void loadSettings(Project project) {
+        NacosProjectConfig projectConfig = NacosProjectConfigState.getInstance(project).getState();
         dataIdField.setText(projectConfig.getDataId() != null ? projectConfig.getDataId() : "");
         groupField.setText(projectConfig.getGroup() != null ? projectConfig.getGroup() : "");
     }

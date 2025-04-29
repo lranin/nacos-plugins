@@ -1,6 +1,7 @@
 package com.yifeng.service;
 
 import com.intellij.openapi.components.*;
+import com.intellij.openapi.project.Project;
 import com.yifeng.model.NacosProjectConfig;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -13,13 +14,13 @@ import org.jetbrains.annotations.Nullable;
 @Service(Service.Level.PROJECT)
 @State(
         name = "NacosProjectConfig",
-        storages = @Storage("nacos_project_config.xml") // 存储到项目级别
+        storages = @Storage(StoragePathMacros.WORKSPACE_FILE) // 存储到项目级别
 )
 public final class NacosProjectConfigState implements PersistentStateComponent<NacosProjectConfig> {
     NacosProjectConfig nacosProjectConfig = new NacosProjectConfig();
 
-    public static NacosProjectConfigState getInstance() {
-        return com.intellij.openapi.components.ServiceManager.getService(NacosProjectConfigState.class);
+    public static NacosProjectConfigState getInstance(Project project) {
+        return project.getService(NacosProjectConfigState.class);
     }
 
     @Override
